@@ -1,0 +1,1 @@
+TIMx->CCR1 = OC_Config->Pulse;

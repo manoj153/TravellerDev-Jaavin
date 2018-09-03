@@ -78,6 +78,8 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
 
 /* USER CODE BEGIN PFP */
+
+void test_pwm_blink();
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
@@ -94,9 +96,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	
   /* USER CODE END 1 */
-		
+
   /* MCU Configuration----------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -123,20 +125,25 @@ int main(void)
   MX_TIM17_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-
+	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		
+		test_pwm_blink();
 
   /* USER CODE END WHILE */
+		
 
   /* USER CODE BEGIN 3 */
 
   }
+	
   /* USER CODE END 3 */
+	
 
 }
 
@@ -386,9 +393,9 @@ static void MX_TIM16_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 0;
+  htim16.Init.Prescaler = 10000;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 0;
+  htim16.Init.Period = 40;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -403,7 +410,7 @@ static void MX_TIM16_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 20;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -598,6 +605,25 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
+
+void test_pwm_blink()
+{
+		for(int x = 0; x<40; ) 
+  {
+		
+		HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+		TIM16->CCR1= x;
+		x=x+5;
+		HAL_Delay(150);		
+  }
+	
+		HAL_GPIO_TogglePin(RING_R_GPIO_Port, RING_R_Pin);
+		HAL_GPIO_TogglePin(RING_G_GPIO_Port, RING_G_Pin);
+		HAL_GPIO_TogglePin(RING_B_GPIO_Port, RING_B_Pin);
+		HAL_Delay(50);
+}
 /* USER CODE END 4 */
 
 /**
