@@ -63,6 +63,8 @@ UART_HandleTypeDef huart1;
 /* Private variables ---------------------------------------------------------*/
 _Bool POWERON = 0x00;
 _Bool POWERON_State = 0x00;
+_Bool PWSW = 0x00;
+uint8_t cntboot = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
 /* USER CODE END PV */
@@ -85,6 +87,8 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN PFP */
 
 void test_pwm_blink(void);
+void startupF(void);
+void shutF(void);
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
@@ -131,14 +135,50 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//		if(POWERON_State) // only if buttoon pressed 
+//		{	
+//			if(PWSW)
+//			{
+//				PWSW = 0x00;
+//			}
+//			else
+//			{
+//				PWSW = 0x01;
+//			}		
+//			
+//		}
+		if(PWSW) // PWR ON
+		{
+			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_SET);
+			//HAL_Delay(500);
+			//test_pwm_blink();
+			if(cntboot < 1)
+			{
+				startupF();
+				cntboot=+1;
+				
+			}
+			
+		}
+		else //PWR OFF
+		{
+			if(cntboot>=1)
+			{shutF();}
+			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_RESET);
+			HAL_Delay(500);
+			cntboot=0;
+			
+		}
 		
-		test_pwm_blink();
+		
 
   /* USER CODE END WHILE */
 
@@ -449,9 +489,9 @@ static void MX_TIM17_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 0;
+  htim17.Init.Prescaler = 10000;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 0;
+  htim17.Init.Period = 40;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -466,7 +506,7 @@ static void MX_TIM17_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
+  sConfigOC.Pulse = 40;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -625,7 +665,7 @@ void test_pwm_blink(void)
 		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
 		TIM16->CCR1= x;
 		x=x+5;
-		HAL_Delay(150);		
+		HAL_Delay(50);		
   }
 	
 		HAL_GPIO_TogglePin(RING_R_GPIO_Port, RING_R_Pin);
@@ -639,13 +679,28 @@ void HAL_SYSTICK_Callback(void)
 	
 	if(POWERON != 1)
 	{
+		
 		POWERON_1 ++;
 		POWERON_0 = 0;
 		if(POWERON_1 >= REFdebounce)
 		{
-			POWERON_1 = REFdebounce +1;
+			if(POWERON_1>5000)
+			{
+				PWSW = 0;
+				POWERON_1 = REFdebounce +1;	
+				//POWERON_1 = REFdebounce +1;
+			}
+			else if (POWERON_1>1500)  
+				{
+				PWSW = 1;
+				
+				}
+			//POWERON_1 = REFdebounce +1;	
+			//POWERON_1 = REFdebounce +1;
+			
 			POWERON_State = 1;
 		}
+	}
 		else
 		{
 			POWERON_1 =0;
@@ -657,9 +712,104 @@ void HAL_SYSTICK_Callback(void)
 			}
 		}
 		
-	}
+	
 	
 }
+
+void startupF(void)
+{
+	
+	for(int x = 0; x<40; ) 
+  {
+		
+		HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+		TIM16->CCR1= x;
+		x=x+5;
+		HAL_Delay(250);	
+		switch (x)
+      {
+      	case 15:
+					HAL_GPIO_WritePin(G4_GPIO_Port,G4_Pin,GPIO_PIN_SET); 
+      		break;
+      	case 25:
+					HAL_GPIO_WritePin(G6_GPIO_Port,G6_Pin,GPIO_PIN_SET); //NT
+					HAL_GPIO_WritePin(G5_GPIO_Port,G5_Pin,GPIO_PIN_SET); //BLE
+					HAL_GPIO_WritePin(G3_GPIO_Port,G3_Pin,GPIO_PIN_SET); //GS
+					HAL_GPIO_WritePin(G2_GPIO_Port,G2_Pin,GPIO_PIN_SET); // Smoke
+      		break;
+				case 40:
+					HAL_GPIO_WritePin(G1_GPIO_Port,G1_Pin,GPIO_PIN_SET);
+      		break;
+      	default:
+      		break;
+      }	
+		
+  }
+	
+	for(uint8_t i =0; i<4; i++)
+	{
+		HAL_GPIO_TogglePin(RING_R_GPIO_Port, RING_R_Pin);
+		HAL_GPIO_TogglePin(RING_G_GPIO_Port, RING_G_Pin);
+		HAL_GPIO_TogglePin(RING_B_GPIO_Port, RING_B_Pin);
+		
+		HAL_Delay(1000);
+	}
+	
+		HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+	
+}
+
+void shutF(void)
+{
+	
+	for(int x = 40; x>0; ) 
+  {
+		
+		HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+		TIM16->CCR1= x;
+		x=x-5;
+		HAL_Delay(250);	
+		switch (x)
+      {
+      	case 35:
+					HAL_GPIO_WritePin(G4_GPIO_Port,G4_Pin,GPIO_PIN_RESET); //snd
+      		break;
+      	case 20:
+					HAL_GPIO_WritePin(G6_GPIO_Port,G6_Pin,GPIO_PIN_RESET); //NT
+					HAL_GPIO_WritePin(G5_GPIO_Port,G5_Pin,GPIO_PIN_RESET); //BLE
+					HAL_GPIO_WritePin(G3_GPIO_Port,G3_Pin,GPIO_PIN_RESET); //GS
+					HAL_GPIO_WritePin(G2_GPIO_Port,G2_Pin,GPIO_PIN_RESET); // Smoke
+      		break;
+				case 15:
+					HAL_GPIO_WritePin(G1_GPIO_Port,G1_Pin,GPIO_PIN_RESET); // motion
+      		break;
+      	default:
+      		break;
+      }	
+		
+  }
+	
+	for(uint8_t i =0; i<4; i++)
+	{
+		HAL_GPIO_TogglePin(RING_R_GPIO_Port, RING_R_Pin);
+		HAL_GPIO_TogglePin(RING_G_GPIO_Port, RING_G_Pin);
+		HAL_GPIO_TogglePin(RING_B_GPIO_Port, RING_B_Pin);
+		
+		HAL_Delay(1000);
+	}
+	
+		HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_RESET);
+	
+}
+	
 /* USER CODE END 4 */
 
 /**
