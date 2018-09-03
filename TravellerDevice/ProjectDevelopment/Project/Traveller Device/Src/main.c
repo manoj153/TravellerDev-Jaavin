@@ -58,8 +58,13 @@ TIM_HandleTypeDef htim17;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
+#define REFdebounce 150
 
+/* Private variables ---------------------------------------------------------*/
+_Bool POWERON = 0x00;
+_Bool POWERON_State = 0x00;
+uint32_t POWERON_1 = 0;
+uint32_t POWERON_0 = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,14 +141,12 @@ int main(void)
 		test_pwm_blink();
 
   /* USER CODE END WHILE */
-		
 
   /* USER CODE BEGIN 3 */
 
   }
 	
   /* USER CODE END 3 */
-	
 
 }
 
@@ -595,12 +598,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : BT_Pin NITE_Pin PWR_Pin */
-  GPIO_InitStruct.Pin = BT_Pin|NITE_Pin|PWR_Pin;
+  /*Configure GPIO pins : BT_Pin NITE_Pin */
+  GPIO_InitStruct.Pin = BT_Pin|NITE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PWR_Pin */
+  GPIO_InitStruct.Pin = PWR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(PWR_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -624,6 +632,33 @@ void test_pwm_blink(void)
 		HAL_GPIO_TogglePin(RING_G_GPIO_Port, RING_G_Pin);
 		HAL_GPIO_TogglePin(RING_B_GPIO_Port, RING_B_Pin);
 		HAL_Delay(50);
+}
+void HAL_SYSTICK_Callback(void)
+{
+	POWERON = HAL_GPIO_ReadPin(PWR_GPIO_Port, PWR_Pin);
+	
+	if(POWERON != 1)
+	{
+		POWERON_1 ++;
+		POWERON_0 = 0;
+		if(POWERON_1 >= REFdebounce)
+		{
+			POWERON_1 = REFdebounce +1;
+			POWERON_State = 1;
+		}
+		else
+		{
+			POWERON_1 =0;
+			POWERON_0++;
+			if(POWERON_0 >= REFdebounce)
+			{
+			POWERON_0 = REFdebounce +1 ;
+			POWERON_State = 0;
+			}
+		}
+		
+	}
+	
 }
 /* USER CODE END 4 */
 
