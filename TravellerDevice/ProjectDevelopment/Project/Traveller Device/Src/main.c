@@ -58,7 +58,7 @@ TIM_HandleTypeDef htim17;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-#define REFdebounce 150
+#define REFdebounce 50
 
 /* Private variables ---------------------------------------------------------*/
 _Bool POWERON = 0x00;
@@ -160,20 +160,29 @@ int main(void)
 			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_SET);
 			//HAL_Delay(500);
 			//test_pwm_blink();
-			if(cntboot < 1)
-			{
-				startupF();
-				cntboot=+1;
-				
-			}
+//			if(cntboot < 1)
+//			{
+//				
+//				HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_SET);
+//				//startupF();
+//				cntboot=+1;
+//				
+//			}
+//			else if (cntboot>=1)
+//			{
+//				HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_RESET);
+//				cntboot=0;
+//			}
 			
 		}
 		else //PWR OFF
 		{
-			if(cntboot>=1)
-			{shutF();}
+//			if(cntboot>=1)
+//			{
+//				//shutF();
+//			}
 			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_RESET);
-			HAL_Delay(500);
+			HAL_Delay(20);
 			cntboot=0;
 			
 		}
@@ -677,24 +686,33 @@ void HAL_SYSTICK_Callback(void)
 {
 	POWERON = HAL_GPIO_ReadPin(PWR_GPIO_Port, PWR_Pin);
 	
-	if(POWERON != 1)
+	if(POWERON != 1)  //Pressed 
 	{
-		
-		POWERON_1 ++;
-		POWERON_0 = 0;
+		//PWSW = 0;
+		POWERON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		POWERON_0 = 0; // debounce the zero value 
 		if(POWERON_1 >= REFdebounce)
 		{
-			if(POWERON_1>5000)
+			if(POWERON_1>2000) // Detecing Switch off for trigger action 
 			{
-				PWSW = 0;
+				if(PWSW)
+				{
+					PWSW = 0;
+				}
+				else
+				{
+					PWSW = 1;
+				}
+				//PWSW = 1;
 				POWERON_1 = REFdebounce +1;	
 				//POWERON_1 = REFdebounce +1;
 			}
-			else if (POWERON_1>1500)  
-				{
-				PWSW = 1;
-				
-				}
+//			else if (POWERON_1>1500) // Detecing Switch On for trigger action 
+//				{
+//				PWSW = 1;
+//				//POWERON_1 = REFdebounce +1;
+//				
+//				}
 			//POWERON_1 = REFdebounce +1;	
 			//POWERON_1 = REFdebounce +1;
 			
