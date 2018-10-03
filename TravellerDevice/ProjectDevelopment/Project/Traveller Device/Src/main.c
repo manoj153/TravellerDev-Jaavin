@@ -52,6 +52,7 @@ I2C_HandleTypeDef hi2c2;
 
 SAI_HandleTypeDef hsai_BlockA1;
 
+TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
 
@@ -67,6 +68,7 @@ _Bool PWSW = 0x00;
 uint8_t cntboot = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
+uint32_t sensors 	=	0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,13 +81,15 @@ static void MX_SAI1_Init(void);
 static void MX_TIM16_Init(void);
 static void MX_TIM17_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM6_Init(void);
 
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
                                 
 
 /* USER CODE BEGIN PFP */
-
+void heartBeat_loop(uint8_t initial_val, uint8_t end_val, uint8_t n);
+void heartBeat_loop2(uint8_t initial_val, uint8_t end_val, uint8_t n);
 void test_pwm_blink(void);
 void startupF(void);
 void shutF(void);
@@ -133,6 +137,7 @@ int main(void)
   MX_TIM16_Init();
   MX_TIM17_Init();
   MX_USART1_UART_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
@@ -143,48 +148,64 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//		if(POWERON_State) // only if buttoon pressed 
-//		{	
-//			if(PWSW)
-//			{
-//				PWSW = 0x00;
-//			}
-//			else
-//			{
-//				PWSW = 0x01;
-//			}		
-//			
-//		}
-		if(PWSW) // PWR ON
+		if(PWSW) // PWR ON [TurnON001]
 		{
-			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_SET);
+			//HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_SET);
 			//HAL_Delay(500);
 			//test_pwm_blink();
-//			if(cntboot < 1)
-//			{
-//				
-//				HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_SET);
-//				//startupF();
-//				cntboot=+1;
-//				
-//			}
-//			else if (cntboot>=1)
-//			{
-//				HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_RESET);
-//				cntboot=0;
-//			}
+			if(cntboot < 1) //Run this for only first time booting
+			{		
+				HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_SET);
+				cntboot=+1;
+				heartBeat_loop2(0,39,1);	
+				heartBeat_loop(39,9,0);
+				heartBeat_loop(9,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,9,1);
+				
+			}
+			if((sensors) & (PWSW))
+			{
+				HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+				heartBeat_loop2(0,39,1);	
+				heartBeat_loop(39,9,0);
+				heartBeat_loop(9,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,39,1);
+				heartBeat_loop(39,3,0);
+				heartBeat_loop(3,9,1);
+				sensors = 0; 		
+			}
 			
 		}
-		else //PWR OFF
+		else //PWR OFF  [TurnOFF001]
 		{
-//			if(cntboot>=1)
-//			{
-//				//shutF();
-//			}
-			HAL_GPIO_WritePin(G7_GPIO_Port,G7_Pin,GPIO_PIN_RESET);
-			HAL_Delay(20);
-			cntboot=0;
-			
+			if(cntboot>=1) // run this if the turn on routine have run before. 
+				{
+					//Off light S
+					heartBeat_loop2(9,3,0);
+					heartBeat_loop(3,39,1);
+					heartBeat_loop(39,3,0);
+					heartBeat_loop(3,39,1);
+					heartBeat_loop(39,3,0);
+					heartBeat_loop(3,39,1);
+					heartBeat_loop(39,9,0);
+					heartBeat_loop(9,39,1);
+					heartBeat_loop(39,1,0);
+				}
+				//HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_RESET);	
+			//HAL_Delay(2500);
+			//PWSW=0;
+			cntboot=0;	
 		}
 		
 		
@@ -437,6 +458,31 @@ static void MX_SAI1_Init(void)
 
 }
 
+/* TIM6 init function */
+static void MX_TIM6_Init(void)
+{
+
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 20000-1;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 40;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /* TIM16 init function */
 static void MX_TIM16_Init(void)
 {
@@ -445,9 +491,9 @@ static void MX_TIM16_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 10000;
+  htim16.Init.Prescaler = 10000-1;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 40;
+  htim16.Init.Period = 40-1;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -498,9 +544,9 @@ static void MX_TIM17_Init(void)
   TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig;
 
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 10000;
+  htim17.Init.Prescaler = 10000-1;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim17.Init.Period = 40;
+  htim17.Init.Period = 40-1;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim17.Init.RepetitionCounter = 0;
   htim17.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -515,7 +561,7 @@ static void MX_TIM17_Init(void)
   }
 
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 40;
+  sConfigOC.Pulse = 9;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
@@ -692,7 +738,7 @@ void HAL_SYSTICK_Callback(void)
 		POWERON_1 ++; // Is a count var of button preess increment 1 by 1ms 
 		POWERON_0 = 0; // debounce the zero value 
 		if(POWERON_1 >= REFdebounce)
-		{
+		{	
 			if(POWERON_1>2000) // Detecing Switch off for trigger action 
 			{
 				if(PWSW)
@@ -707,12 +753,19 @@ void HAL_SYSTICK_Callback(void)
 				POWERON_1 = REFdebounce +1;	
 				//POWERON_1 = REFdebounce +1;
 			}
-//			else if (POWERON_1>1500) // Detecing Switch On for trigger action 
-//				{
-//				PWSW = 1;
-//				//POWERON_1 = REFdebounce +1;
-//				
-//				}
+			
+			else if ((POWERON_1> 150) & (POWERON_1< 250)) // Detecing Switch On for trigger action 
+				{				
+					//sensors &= ~( HAL_GPIO_ReadPin(CH1_1_GPIO_Port, CH1_1_Pin) << 23);
+				if(sensors)
+					{
+						sensors = 0;
+					}
+				else
+					{
+						sensors = 1;
+					}
+				}
 			//POWERON_1 = REFdebounce +1;	
 			//POWERON_1 = REFdebounce +1;
 			
@@ -827,7 +880,85 @@ void shutF(void)
 		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_RESET);
 	
 }
-	
+
+
+
+void heartBeat_loop(uint8_t initial_val, uint8_t end_val, uint8_t n)
+{
+		int delayl = 0;
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+	//only run this loop when the initial value max = 40
+		if(n==0) // when light ramp down slope
+	{
+			for(uint8_t x = initial_val; x>=end_val;) // 0- 100 in 2 sec
+			{
+			TIM16->CCR1= x;
+			x = x - 1;
+				
+			//Detect 13 times 10ms of TIM6 has elapsed.
+			delayl = 1000/(initial_val-end_val);
+			HAL_Delay(delayl);	
+					
+			//Create a delay of 130ms
+			//loop will end with PWM val = 10 so 25% brightness 
+			}
+	}
+	//carry this loop when initial value is at lowest = 20
+		else if (n == 1)// up slope
+	{
+			for(uint8_t x = initial_val; x<=end_val;)
+			{
+			TIM16->CCR1= x;
+			x = x + 1;
+			delayl = 1000/(end_val-initial_val);
+			//Create a delay of 130ms
+				
+			HAL_Delay(delayl);	
+			//loop will end with PWM val = 10 so 25% brightness 
+			}
+	}
+}
+
+
+
+
+void heartBeat_loop2(uint8_t initial_val, uint8_t end_val, uint8_t n)
+{
+		int delayl = 0;
+		HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+	//only run this loop when the initial value max = 40
+		if(n==0) // when light ramp down slope
+	{
+			for(uint8_t x = initial_val; x>=end_val;) // 0- 100 in 2 sec
+			{
+			TIM16->CCR1= x;
+			x = x - 1;
+				
+			//Detect 13 times 10ms of TIM6 has elapsed.
+			delayl = 2000/(initial_val-end_val);
+			HAL_Delay(delayl);	
+					
+			//Create a delay of 130ms
+			//loop will end with PWM val = 10 so 25% brightness 
+			}
+	}
+	//carry this loop when initial value is at lowest = 20
+		else if (n == 1)// up slope
+	{
+			for(uint8_t x = initial_val; x<=end_val;)
+			{
+			TIM16->CCR1= x;
+			x = x + 1;
+			delayl = 2000/(end_val-initial_val);
+			//Create a delay of 130ms
+				
+			HAL_Delay(delayl);	
+			//loop will end with PWM val = 10 so 25% brightness 
+			}
+	}
+}
+
+
 /* USER CODE END 4 */
 
 /**
