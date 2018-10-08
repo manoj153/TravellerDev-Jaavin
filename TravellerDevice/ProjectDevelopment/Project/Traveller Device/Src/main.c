@@ -63,12 +63,46 @@ UART_HandleTypeDef huart1;
 
 /* Private variables ---------------------------------------------------------*/
 _Bool POWERON = 0x00;
+_Bool	SMOKEON =	0x00;
+_Bool	GASON		=	0x00;
+_Bool	MOVEON	=	0x00;
+_Bool	SOUNDON	=	0x00;
+_Bool NITEON	= 0x00;
+_Bool	 SCANROOM = 0x00;
+_Bool	BTON		=	0x00;
 _Bool POWERON_State = 0x00;
 _Bool PWSW = 0x00;
+_Bool clear_1 = 1;
+_Bool clear_2 = 1;
+_Bool clear_3 = 1;
+_Bool clear_4 = 1;
+_Bool clear_5 = 1;
+_Bool clear_6 = 1;
 uint8_t cntboot = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
 uint32_t sensors 	=	0;
+
+uint32_t	SMOKEON_1 =	0x00;
+uint32_t	SMOKEON_0 =	0x00;
+
+uint32_t	GASON_1		=	0x00;
+uint32_t	GASON_0		=	0x00;
+
+uint32_t	MOVEON_1	=	0x00;
+uint32_t	MOVEON_0	=	0x00;
+
+uint32_t	SOUNDON_1	=	0x00;
+uint32_t	SOUNDON_0	=	0x00;
+
+uint32_t NITEON_1	= 0x00;
+uint32_t NITEON_0	= 0x00;
+
+uint32_t	 SCANROOM_1 = 0x00;
+uint32_t	 SCANROOM_0 = 0x00;
+
+uint32_t	BTON_1		=	0x00;
+uint32_t	BTON_0		=	0x00;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -169,7 +203,7 @@ int main(void)
 				heartBeat_loop(3,9,1);
 				
 			}
-			if((sensors) & (PWSW))
+			if((SCANROOM) & (PWSW))
 			{
 				HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
 				heartBeat_loop2(0,39,1);	
@@ -181,8 +215,62 @@ int main(void)
 				heartBeat_loop(3,39,1);
 				heartBeat_loop(39,3,0);
 				heartBeat_loop(3,9,1);
-				sensors = 0; 		
+				SCANROOM = 0; 		
 			}
+			
+			if((sensors >> 4) & 1)
+			{
+				HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin, GPIO_PIN_RESET);
+			}
+			
+			if((sensors >> 5) & 1)
+			{
+				HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin, GPIO_PIN_RESET);
+			}
+			if((sensors >> 6) & 1)
+			{
+				HAL_GPIO_WritePin(B5_GPIO_Port, B5_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B5_GPIO_Port, B5_Pin, GPIO_PIN_RESET);
+			}
+			
+			if((sensors >> 7) & 1)
+			{
+				HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_RESET);
+			}
+			
+			if((sensors >> 8) & 1)
+			{
+				HAL_GPIO_WritePin(B3_GPIO_Port, B3_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B3_GPIO_Port, B3_Pin, GPIO_PIN_RESET);
+			}
+			
+			if((sensors >> 9) & 1)
+			{
+				HAL_GPIO_WritePin(B4_GPIO_Port, B4_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(B4_GPIO_Port, B4_Pin, GPIO_PIN_RESET);
+			}
+		
 			
 		}
 		else //PWR OFF  [TurnOFF001]
@@ -687,23 +775,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : MOTION_Pin SMOKE_Pin GAS_Pin SOUND_Pin */
-  GPIO_InitStruct.Pin = MOTION_Pin|SMOKE_Pin|GAS_Pin|SOUND_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  /*Configure GPIO pins : SMOKE_Pin GAS_Pin SOUND_Pin BT_Pin */
+  GPIO_InitStruct.Pin = SMOKE_Pin|GAS_Pin|SOUND_Pin|BT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : BT_Pin NITE_Pin */
-  GPIO_InitStruct.Pin = BT_Pin|NITE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PWR_Pin */
-  GPIO_InitStruct.Pin = PWR_Pin;
+  /*Configure GPIO pins : NITE_Pin MOTION_Pin PWR_Pin */
+  GPIO_InitStruct.Pin = NITE_Pin|MOTION_Pin|PWR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(PWR_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -730,7 +812,13 @@ void test_pwm_blink(void)
 }
 void HAL_SYSTICK_Callback(void)
 {
-	POWERON = HAL_GPIO_ReadPin(PWR_GPIO_Port, PWR_Pin);
+	POWERON = HAL_GPIO_ReadPin(PWR_GPIO_Port, PWR_Pin); 
+	SMOKEON =	HAL_GPIO_ReadPin(SMOKE_GPIO_Port,SMOKE_Pin); 
+	GASON		= HAL_GPIO_ReadPin(GAS_GPIO_Port,GAS_Pin); 
+	MOVEON	=	HAL_GPIO_ReadPin(MOTION_GPIO_Port,MOTION_Pin); 
+	SOUNDON	= HAL_GPIO_ReadPin(SOUND_GPIO_Port,SOUND_Pin);
+	BTON		= HAL_GPIO_ReadPin(BT_GPIO_Port,BT_Pin);
+	NITEON	= HAL_GPIO_ReadPin(NITE_GPIO_Port,NITE_Pin);
 	
 	if(POWERON != 1)  //Pressed 
 	{
@@ -757,13 +845,13 @@ void HAL_SYSTICK_Callback(void)
 			else if ((POWERON_1> 150) & (POWERON_1< 250)) // Detecing Switch On for trigger action 
 				{				
 					//sensors &= ~( HAL_GPIO_ReadPin(CH1_1_GPIO_Port, CH1_1_Pin) << 23);
-				if(sensors)
+				if(SCANROOM)
 					{
-						sensors = 0;
+						SCANROOM = 0;
 					}
 				else
 					{
-						sensors = 1;
+						SCANROOM = 1;
 					}
 				}
 			//POWERON_1 = REFdebounce +1;	
@@ -783,7 +871,190 @@ void HAL_SYSTICK_Callback(void)
 			}
 		}
 		
+if(SMOKEON != 1)  //Pressed 
+	{
+		
+		SMOKEON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		SMOKEON_0 = 0; // debounce the zero value 
+		if(SMOKEON_1 >= REFdebounce)
+		{	
+			if(SMOKEON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_1)
+				{
+				sensors =  sensors ^ (1 << 4);
+				clear_1 = 0;
+				}
+				SMOKEON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_1 = 1;
+			SMOKEON_1 =0;
+			SMOKEON_0++;
+			if(SMOKEON_0 >= REFdebounce)
+			{
+			SMOKEON_0 = REFdebounce +1 ;
+			}
+		}
+		
+
+
+if(GASON != 1)  //Pressed 
+	{
+		
+		GASON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		GASON_0 = 0; // debounce the zero value 
+		if(GASON_1 >= REFdebounce)
+		{	
+			if(GASON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_2)
+				{
+				sensors =  sensors ^ (1 << 5);
+				clear_2 = 0;
+				}
+				GASON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_2 = 1;
+			GASON_1 =0;
+			GASON_0++;
+			if(GASON_0 >= REFdebounce)
+			{
+			GASON_0 = REFdebounce +1 ;
+			}
+		}
+
+if(MOVEON != 1)  //Pressed 
+	{
+		
+		MOVEON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		MOVEON_0 = 0; // debounce the zero value 
+		if(MOVEON_1 >= REFdebounce)
+		{	
+			if(MOVEON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_3)
+				{
+				sensors =  sensors ^ (1 << 7);
+				clear_3 = 0;
+				}
+				MOVEON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_3 = 1;
+			MOVEON_1 =0;
+			MOVEON_0++;
+			if(MOVEON_0 >= REFdebounce)
+			{
+			MOVEON_0 = REFdebounce +1 ;
+			}
+		}
+
+if(NITEON != 1)  //Pressed 
+	{
+		
+		NITEON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		NITEON_0 = 0; // debounce the zero value 
+		if(NITEON_1 >= REFdebounce)
+		{	
+			if(NITEON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_4)
+				{
+				sensors =  sensors ^ (1 << 6);
+				clear_4 = 0;
+				}
+				NITEON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_4 = 1;
+			NITEON_1 =0;
+			NITEON_0++;
+			if(NITEON_0 >= REFdebounce)
+			{
+			NITEON_0 = REFdebounce +1 ;
+			}
+		}
+
+if(SOUNDON != 1)  //Pressed 
+	{
+		
+		SOUNDON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		SOUNDON_0 = 0; // debounce the zero value 
+		if(SOUNDON_1 >= REFdebounce)
+		{	
+			if(SOUNDON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_5)
+				{
+				sensors =  sensors ^ (1 << 8);
+				clear_5 = 0;
+				}
+				SOUNDON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_5 = 1;
+			SOUNDON_1 =0;
+			SOUNDON_0++;
+			if(SOUNDON_0 >= REFdebounce)
+			{
+			SOUNDON_0 = REFdebounce +1 ;
+			}
+		}
+		
+if(BTON != 1)  //Pressed 
+	{
+		
+		BTON_1 ++; // Is a count var of button preess increment 1 by 1ms 
+		BTON_0 = 0; // debounce the zero value 
+		if(BTON_1 >= REFdebounce)
+		{	
+			if(BTON_1>150) // Detecing Switch off for trigger action 
+			{
+				if(clear_6)
+				{
+				sensors =  sensors ^ (1 << 9);
+				clear_6 = 0;
+				}
+				BTON_1 = REFdebounce +1;	
+			}
+			
+		}
+	}
+		else
+		{
+			clear_6 = 1;
+			BTON_1 =0;
+			BTON_0++;
+			if(BTON_0 >= REFdebounce)
+			{
+			BTON_0 = REFdebounce +1 ;
+			}
+		}		
 	
+		
+			
 	
 }
 
