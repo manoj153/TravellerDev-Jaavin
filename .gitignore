@@ -1,0 +1,36 @@
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/epd\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/camera\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/idd\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/lcd\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/magneto\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/psensor\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/Release_Notes\.html
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/tsensor\.h
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/cs43l22/Release_Notes\.html
+
+*.o
+
+*.d
+
+*.crf
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Common/hsensor\.h
+
+*.axf
+
+TravellerDevice/ProjectDevelopment/Project/Traveller Device/Src/cs43l22/Release_Notes\.html
+
+*.map
+
+*.dep
+
+*.lnp

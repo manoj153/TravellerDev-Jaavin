@@ -44,7 +44,9 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
-
+#include "../cs43l22/cs43l22.h"
+#include "../common/audio.h"
+#include "../stm32l476g_discovery.h"
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/

@@ -1,10 +1,13 @@
 /**
   ******************************************************************************
-  * @file    stm32l4xx_it.h
-  * @brief   This file contains the headers of the interrupt handlers.
+  * @file    audio.h
+  * @author  MCD Application Team
+  * @brief   This header file contains the common defines and functions prototypes
+  *          for the Audio driver.  
   ******************************************************************************
+  * @attention
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -32,41 +35,86 @@
   */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __STM32L4xx_IT_H
-#define __STM32L4xx_IT_H
+#ifndef __AUDIO_H
+#define __AUDIO_H
 
 #ifdef __cplusplus
  extern "C" {
-#endif 
+#endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4xx_hal.h"
-#include "main.h"
-/* Exported types ------------------------------------------------------------*/
-/* Exported constants --------------------------------------------------------*/
-/* Exported macro ------------------------------------------------------------*/
-/* Exported functions ------------------------------------------------------- */
+#include <stdint.h>
 
-void NMI_Handler(void);
-void HardFault_Handler(void);
-void MemManage_Handler(void);
-void BusFault_Handler(void);
-void UsageFault_Handler(void);
-void SVC_Handler(void);
-void DebugMon_Handler(void);
-void PendSV_Handler(void);
-void SysTick_Handler(void);
-void I2C1_EV_IRQHandler(void);
-void I2C1_ER_IRQHandler(void);
-void I2C2_EV_IRQHandler(void);
-void I2C2_ER_IRQHandler(void);
-void DMA2_Channel1_IRQHandler(void);
-void SAI1_IRQHandler(void);
+/** @addtogroup BSP
+  * @{
+  */
+
+/** @addtogroup Components
+  * @{
+  */
+    
+/** @addtogroup AUDIO
+  * @{
+  */
+
+/** @defgroup AUDIO_Exported_Constants
+  * @{
+  */
+
+/* Codec audio Standards */
+#define CODEC_STANDARD                0x04
+#define I2S_STANDARD                  I2S_STANDARD_PHILIPS
+
+/**
+  * @}
+  */
+
+/** @defgroup AUDIO_Exported_Types
+  * @{
+  */
+
+/** @defgroup AUDIO_Driver_structure  Audio Driver structure
+  * @{
+  */
+typedef struct
+{
+  uint32_t  (*Init)(uint16_t, uint16_t, uint8_t, uint32_t);
+  void      (*DeInit)(void);
+  uint32_t  (*ReadID)(uint16_t);
+  uint32_t  (*Play)(uint16_t, uint16_t*, uint16_t);
+  uint32_t  (*Pause)(uint16_t);
+  uint32_t  (*Resume)(uint16_t);
+  uint32_t  (*Stop)(uint16_t, uint32_t);
+  uint32_t  (*SetFrequency)(uint16_t, uint32_t);
+  uint32_t  (*SetVolume)(uint16_t, uint8_t);
+  uint32_t  (*SetMute)(uint16_t, uint32_t);
+  uint32_t  (*SetOutputMode)(uint16_t, uint8_t);
+  uint32_t  (*Reset)(uint16_t);
+}AUDIO_DrvTypeDef;
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __STM32L4xx_IT_H */
+#endif /* __AUDIO_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -41,7 +41,16 @@
 #include "stm32l4xx_hal.h"
 
 /* USER CODE BEGIN Includes */
+#define AUDIO_FILE_ADDRESS   0x08080000
+__IO int16_t                 UpdatePointer = -1;
 
+#define AUDIO_FILE_SIZE      (180*1024)
+#define PLAY_HEADER          0x2C
+#define PLAY_BUFF_SIZE       4096
+DMA_HandleTypeDef            hSaiDma;
+
+uint16_t                      PlayBuff[PLAY_BUFF_SIZE];
+void readSensors();
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -51,6 +60,7 @@ I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
 SAI_HandleTypeDef hsai_BlockA1;
+DMA_HandleTypeDef hdma_sai1_a;
 
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim16;
@@ -59,9 +69,18 @@ TIM_HandleTypeDef htim17;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+SAI_HandleTypeDef    SaiHandle;
+AUDIO_DrvTypeDef            *audio_drv;
 #define REFdebounce 50
 
 /* Private variables ---------------------------------------------------------*/
+uint32_t flame_a0 = 0x00;
+uint32_t CO_a1 = 0x00;
+uint32_t smoke_a2 = 0x00;
+uint32_t heaterTime = 0x00;
+uint32_t offHeaterTime = 0x00;
+_Bool offCountHeater = 0x00;
+_Bool countHeater = 0x00;
 _Bool POWERON = 0x00;
 _Bool	SMOKEON =	0x00;
 _Bool	GASON		=	0x00;
@@ -108,6 +127,7 @@ uint32_t	BTON_0		=	0x00;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_I2C2_Init(void);
@@ -132,7 +152,23 @@ void shutF(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+static void Playback_Init(void)
+{
+		
+	 __HAL_SAI_ENABLE(&hsai_BlockA1);
+	
+	if(CS43L22_ID!= cs43l22_drv.ReadID(AUDIO_I2C_ADDRESS))
+  {
+    Error_Handler();
+  }
+  
+  audio_drv = &cs43l22_drv;
+  audio_drv->Reset(AUDIO_I2C_ADDRESS);  
+  if(0 != audio_drv->Init(AUDIO_I2C_ADDRESS, OUTPUT_DEVICE_SPEAKER, 100, AUDIO_FREQUENCY_22K))
+  {
+    Error_Handler();
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -159,11 +195,12 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  uint32_t PlaybackPosition   = PLAY_BUFF_SIZE + PLAY_HEADER;
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC1_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
@@ -175,20 +212,70 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
-
+	if(*((uint64_t *)AUDIO_FILE_ADDRESS) != 0x017EFE2446464952 ) Error_Handler();
+	Playback_Init();
+	
+	for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
+  {
+    PlayBuff[i]=*((__IO uint16_t *)(AUDIO_FILE_ADDRESS + PLAY_HEADER + i));
+  }
+    
+  /* Start the playback */
+  if(0 != audio_drv->Play(AUDIO_I2C_ADDRESS, NULL, 0))
+  {
+    Error_Handler();
+  }
+  if(HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE))
+  {
+    Error_Handler();
+  }
+	
+	
+	
+	countHeater = 0x01;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+		
+		while(UpdatePointer==-1){
+		
+		}
+    
+    int position = UpdatePointer;
+    UpdatePointer = -1;
+
+    /* Upate the first or the second part of the buffer */
+    for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
+    {
+      PlayBuff[i+position] = *(uint16_t *)(AUDIO_FILE_ADDRESS + PlaybackPosition);
+      PlaybackPosition+=2; 
+    }
+
+    /* check the end of the file */
+    if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
+    {
+      PlaybackPosition = PLAY_HEADER;
+    }
+    
+    if(UpdatePointer != -1)
+    {
+      /* Buffer update time is too long compare to the data transfer time */
+      Error_Handler();
+    }
+		
+		//Playback_Init();
 		if(PWSW) // PWR ON [TurnON001]
 		{
 			//HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_SET);
 			//HAL_Delay(500);
 			//test_pwm_blink();
+			//START
 			if(cntboot < 1) //Run this for only first time booting
 			{		
+				HAL_SAI_DMAPause(&hsai_BlockA1);
 				HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_SET);
 				cntboot=+1;
@@ -201,10 +288,15 @@ int main(void)
 				heartBeat_loop(3,39,1);
 				heartBeat_loop(39,3,0);
 				heartBeat_loop(3,9,1);
-				
+				HAL_SAI_DMAResume(&hsai_BlockA1);
 			}
+			
+			//Read sensors
+			readSensors();
+		
 			if((SCANROOM) & (PWSW))
 			{
+				HAL_SAI_DMAPause(&hsai_BlockA1);
 				HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
 				heartBeat_loop2(0,39,1);	
 				heartBeat_loop(39,9,0);
@@ -216,6 +308,7 @@ int main(void)
 				heartBeat_loop(39,3,0);
 				heartBeat_loop(3,9,1);
 				SCANROOM = 0; 		
+				HAL_SAI_DMAResume(&hsai_BlockA1);
 			}
 			
 			if((sensors >> 4) & 1)
@@ -288,11 +381,10 @@ int main(void)
 					heartBeat_loop(9,39,1);
 					heartBeat_loop(39,1,0);
 				}
-				//HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_RESET);
+				
 			HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(B7_GPIO_Port,B7_Pin,GPIO_PIN_RESET);	
-			//HAL_Delay(2500);
-			//PWSW=0;
+			
 			cntboot=0;	
 		}
 		
@@ -361,8 +453,8 @@ void SystemClock_Config(void)
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
   PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
   PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-  PeriphClkInit.PLLSAI1.PLLSAI1N = 16;
-  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV7;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
+  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV17;
   PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
   PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
   PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK|RCC_PLLSAI1_ADC1CLK;
@@ -400,14 +492,14 @@ static void MX_ADC1_Init(void)
     /**Common config 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 3;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.NbrOfDiscConversion = 1;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -432,10 +524,28 @@ static void MX_ADC1_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure Regular Channel 
+    */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure Regular Channel 
+    */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -518,27 +628,27 @@ static void MX_SAI1_Init(void)
   hsai_BlockA1.Instance = SAI1_Block_A;
   hsai_BlockA1.Init.Protocol = SAI_FREE_PROTOCOL;
   hsai_BlockA1.Init.AudioMode = SAI_MODEMASTER_TX;
-  hsai_BlockA1.Init.DataSize = SAI_DATASIZE_24;
+  hsai_BlockA1.Init.DataSize = SAI_DATASIZE_16;
   hsai_BlockA1.Init.FirstBit = SAI_FIRSTBIT_MSB;
   hsai_BlockA1.Init.ClockStrobing = SAI_CLOCKSTROBING_FALLINGEDGE;
   hsai_BlockA1.Init.Synchro = SAI_ASYNCHRONOUS;
-  hsai_BlockA1.Init.OutputDrive = SAI_OUTPUTDRIVE_DISABLE;
+  hsai_BlockA1.Init.OutputDrive = SAI_OUTPUTDRIVE_ENABLE;
   hsai_BlockA1.Init.NoDivider = SAI_MASTERDIVIDER_ENABLE;
-  hsai_BlockA1.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_EMPTY;
-  hsai_BlockA1.Init.AudioFrequency = SAI_AUDIO_FREQUENCY_192K;
+  hsai_BlockA1.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_1QF;
+  hsai_BlockA1.Init.AudioFrequency = SAI_AUDIO_FREQUENCY_22K;
   hsai_BlockA1.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
   hsai_BlockA1.Init.MonoStereoMode = SAI_STEREOMODE;
   hsai_BlockA1.Init.CompandingMode = SAI_NOCOMPANDING;
   hsai_BlockA1.Init.TriState = SAI_OUTPUT_NOTRELEASED;
-  hsai_BlockA1.FrameInit.FrameLength = 8;
-  hsai_BlockA1.FrameInit.ActiveFrameLength = 1;
-  hsai_BlockA1.FrameInit.FSDefinition = SAI_FS_STARTFRAME;
+  hsai_BlockA1.FrameInit.FrameLength = 32;
+  hsai_BlockA1.FrameInit.ActiveFrameLength = 16;
+  hsai_BlockA1.FrameInit.FSDefinition = SAI_FS_CHANNEL_IDENTIFICATION;
   hsai_BlockA1.FrameInit.FSPolarity = SAI_FS_ACTIVE_LOW;
-  hsai_BlockA1.FrameInit.FSOffset = SAI_FS_FIRSTBIT;
+  hsai_BlockA1.FrameInit.FSOffset = SAI_FS_BEFOREFIRSTBIT;
   hsai_BlockA1.SlotInit.FirstBitOffset = 0;
   hsai_BlockA1.SlotInit.SlotSize = SAI_SLOTSIZE_DATASIZE;
-  hsai_BlockA1.SlotInit.SlotNumber = 1;
-  hsai_BlockA1.SlotInit.SlotActive = 0x00000000;
+  hsai_BlockA1.SlotInit.SlotNumber = 2;
+  hsai_BlockA1.SlotInit.SlotActive = 0x00000003;
   if (HAL_SAI_Init(&hsai_BlockA1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -695,6 +805,21 @@ static void MX_USART1_UART_Init(void)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Channel1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Channel1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Channel1_IRQn);
 
 }
 
@@ -1053,6 +1178,22 @@ if(BTON != 1)  //Pressed
 			}
 		}		
 	
+	if(countHeater)
+	{
+		heaterTime ++;
+	}
+	else
+	{
+		heaterTime = 0;
+	}
+	if(offCountHeater)
+	{
+		offHeaterTime ++;
+	}
+	else
+	{
+		offHeaterTime = 0;
+	}
 		
 			
 	
@@ -1229,6 +1370,64 @@ void heartBeat_loop2(uint8_t initial_val, uint8_t end_val, uint8_t n)
 	}
 }
 
+void HAL_SAI_TxCpltCallback(SAI_HandleTypeDef *hsai)
+{
+  /* NOTE : This function Should not be modified, when the callback is needed,
+            the HAL_SAI_TxCpltCallback could be implemented in the user file
+   */ 
+  UpdatePointer = PLAY_BUFF_SIZE/2;
+}
+
+void HAL_SAI_TxHalfCpltCallback(SAI_HandleTypeDef *hsai)
+{
+  /* NOTE : This function Should not be modified, when the callback is needed,
+            the HAL_SAI_TxHalfCpltCallback could be implenetd in the user file
+   */ 
+  UpdatePointer = 0;
+}
+
+void readSensors()
+{
+if(countHeater)
+	{
+	HAL_GPIO_WritePin(C0_HTR_GPIO_Port,C0_HTR_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GAS_HTR_GPIO_Port,GAS_HTR_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(SMOKE_HTR_GPIO_Port,SMOKE_HTR_Pin, GPIO_PIN_SET);
+	}
+if(heaterTime >= 30000U)
+	{
+		//readValues analog/Digital.
+		HAL_ADC_Stop(&hadc1);
+		HAL_ADC_Start(&hadc1);
+		
+		
+		HAL_ADC_PollForConversion(&hadc1,100);
+		flame_a0 =  HAL_ADC_GetValue(&hadc1);
+
+		HAL_ADC_PollForConversion(&hadc1,100);
+		CO_a1 =  HAL_ADC_GetValue(&hadc1);
+		
+		HAL_ADC_PollForConversion(&hadc1,100);
+		smoke_a2 =  HAL_ADC_GetValue(&hadc1);
+		
+		HAL_ADC_Stop(&hadc1);
+		
+		countHeater = 0x00;
+		HAL_GPIO_WritePin(C0_HTR_GPIO_Port,C0_HTR_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GAS_HTR_GPIO_Port,GAS_HTR_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(SMOKE_HTR_GPIO_Port,SMOKE_HTR_Pin, GPIO_PIN_RESET);
+		
+		//Turn on counter for 30 Seconds.
+		offCountHeater = 0x01;
+	}
+if(offHeaterTime >=30000U)
+	{
+		offCountHeater = 0x0;
+		countHeater = 0x01;	
+	}
+	
+	
+}
 
 /* USER CODE END 4 */
 

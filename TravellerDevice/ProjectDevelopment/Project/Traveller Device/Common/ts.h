@@ -1,10 +1,12 @@
 /**
   ******************************************************************************
-  * @file    stm32l4xx_it.h
-  * @brief   This file contains the headers of the interrupt handlers.
+  * @file    ts.h
+  * @author  MCD Application Team
+  * @brief   This file contains all the functions prototypes for the Touch Screen driver.
   ******************************************************************************
+  * @attention
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * <h2><center>&copy; COPYRIGHT(c) 2017 STMicroelectronics</center></h2>
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -32,41 +34,72 @@
   */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __STM32L4xx_IT_H
-#define __STM32L4xx_IT_H
+#ifndef __TS_H
+#define __TS_H
 
 #ifdef __cplusplus
  extern "C" {
-#endif 
+#endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4xx_hal.h"
-#include "main.h"
-/* Exported types ------------------------------------------------------------*/
-/* Exported constants --------------------------------------------------------*/
-/* Exported macro ------------------------------------------------------------*/
-/* Exported functions ------------------------------------------------------- */
+#include <stdint.h> 
 
-void NMI_Handler(void);
-void HardFault_Handler(void);
-void MemManage_Handler(void);
-void BusFault_Handler(void);
-void UsageFault_Handler(void);
-void SVC_Handler(void);
-void DebugMon_Handler(void);
-void PendSV_Handler(void);
-void SysTick_Handler(void);
-void I2C1_EV_IRQHandler(void);
-void I2C1_ER_IRQHandler(void);
-void I2C2_EV_IRQHandler(void);
-void I2C2_ER_IRQHandler(void);
-void DMA2_Channel1_IRQHandler(void);
-void SAI1_IRQHandler(void);
+/** @addtogroup BSP
+  * @{
+  */
+
+/** @addtogroup Components
+  * @{
+  */
+    
+/** @addtogroup TS
+  * @{
+  */
+
+/** @defgroup TS_Exported_Types
+  * @{
+  */
+
+/** @defgroup TS_Driver_structure  Touch Sensor Driver structure
+  * @{
+  */
+typedef struct
+{  
+  void       (*Init)(uint16_t);
+  uint16_t   (*ReadID)(uint16_t);
+  void       (*Reset)(uint16_t);
+  void       (*Start)(uint16_t);
+  uint8_t    (*DetectTouch)(uint16_t);
+  void       (*GetXY)(uint16_t, uint16_t*, uint16_t*);
+  void       (*EnableIT)(uint16_t);
+  void       (*ClearIT)(uint16_t);
+  uint8_t    (*GetITStatus)(uint16_t);
+  void       (*DisableIT)(uint16_t);
+}TS_DrvTypeDef;
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __STM32L4xx_IT_H */
+#endif /* __TS_H */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
