@@ -80,6 +80,7 @@ uint32_t CO_a1 = 0x00;
 uint32_t smoke_a2 = 0x00;
 uint32_t heaterTime = 0x00;
 uint32_t offHeaterTime = 0x00;
+uint32_t flashredTime = 0x00;
 float flameV;
 float coV;
 float smokeV;
@@ -104,6 +105,7 @@ _Bool clear_6 = 1;
 _Bool redCO = 0x00;
 _Bool redSmoke = 0x00;
 _Bool redFlame = 0x00;
+_Bool flashRED = 0x00; 
 uint8_t cntboot = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
@@ -1223,7 +1225,12 @@ if(BTON != 1)  //Pressed
 		offHeaterTime = 0;
 	}
 		
-			
+	//if the got trigger the light need to flash
+	if(flashRED)
+	{
+		flashredTime ++;
+	}
+	
 	
 }
 
@@ -1474,13 +1481,21 @@ void checkDiff()
 void trigger()
 {
 	//battery voltage 
-	//co sensor 
-	//flame sensor
-	//smoke sensors
+	//co sensor  done 
+	//flame sensor done
+	//smoke sensors done 
 	
 	if((flameV >= 0.8) || (coV >= 0.8) )
 		{
+			if(((sensors >> 5) & 1 ))
+			{
 			redCO = 1;
+			}
+			else
+			{
+			 redCO = 0;
+			}
+			
 		}
 		else 
 		{
@@ -1489,14 +1504,43 @@ void trigger()
 		
 		if(smokeV >=0.8)
 		{
+			if(((sensors >> 4) & 1 ))
+			{
 			redSmoke =1;
+			}
+			else
+			{
+			redSmoke =0;
+			}
 		}
 		else 
 		{
 			redSmoke = 0;
 		}
 		
+		if(redCO || smokeV)
+		{
+			flashRED = 0x01;
+		}
+		else
+		{
+			flashRED = 0x00;
+		}
 		
+		if((flashredTime > 1000U) & (flashRED) )
+		{
+			HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_TogglePin(RING_R_GPIO_Port,RING_R_Pin);
+			flashredTime = 0;
+		}
+		
+		if(!flashRED)
+		{
+			HAL_GPIO_WritePin(RING_B_GPIO_Port, RING_B_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RING_G_GPIO_Port, RING_G_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_RESET);
+		}
 	
 }
 
