@@ -51,6 +51,7 @@ DMA_HandleTypeDef            hSaiDma;
 
 uint16_t                      PlayBuff[PLAY_BUFF_SIZE];
 void readSensors();
+void trigger();
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -79,6 +80,9 @@ uint32_t CO_a1 = 0x00;
 uint32_t smoke_a2 = 0x00;
 uint32_t heaterTime = 0x00;
 uint32_t offHeaterTime = 0x00;
+float flameV;
+float coV;
+float smokeV;
 _Bool offCountHeater = 0x00;
 _Bool countHeater = 0x00;
 _Bool POWERON = 0x00;
@@ -97,10 +101,14 @@ _Bool clear_3 = 1;
 _Bool clear_4 = 1;
 _Bool clear_5 = 1;
 _Bool clear_6 = 1;
+_Bool redCO = 0x00;
+_Bool redSmoke = 0x00;
+_Bool redFlame = 0x00;
 uint8_t cntboot = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
 uint32_t sensors 	=	0;
+uint32_t sensorsM 	=	0;
 
 uint32_t	SMOKEON_1 =	0x00;
 uint32_t	SMOKEON_0 =	0x00;
@@ -293,7 +301,7 @@ int main(void)
 			
 			//Read sensors
 			readSensors();
-		
+			trigger();
 			if((SCANROOM) & (PWSW))
 			{
 				HAL_SAI_DMAPause(&hsai_BlockA1);
@@ -313,20 +321,40 @@ int main(void)
 			
 			if((sensors >> 4) & 1)
 			{
+				if(redSmoke)
+				{
+				HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin, GPIO_PIN_SET);
+				}
+				else
+				{
+				HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin, GPIO_PIN_SET);
+				}
 			}
 			else
 			{
 				HAL_GPIO_WritePin(B1_GPIO_Port, B1_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin, GPIO_PIN_RESET);
 			}
 			
 			if((sensors >> 5) & 1)
 			{
+				if(redCO)
+				{
+					HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin, GPIO_PIN_SET);
+				}
+				else
+				{
 				HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin, GPIO_PIN_RESET);
+				}
 			}
 			else
 			{
 				HAL_GPIO_WritePin(B2_GPIO_Port, B2_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin, GPIO_PIN_RESET);
 			}
 			if((sensors >> 6) & 1)
 			{
@@ -492,7 +520,7 @@ static void MX_ADC1_Init(void)
     /**Common config 
     */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
@@ -524,7 +552,7 @@ static void MX_ADC1_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_1;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_247CYCLES_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_640CYCLES_5;
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
@@ -1394,21 +1422,26 @@ if(countHeater)
 	HAL_GPIO_WritePin(GAS_HTR_GPIO_Port,GAS_HTR_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(SMOKE_HTR_GPIO_Port,SMOKE_HTR_Pin, GPIO_PIN_SET);
 	}
-if(heaterTime >= 30000U)
+if(heaterTime >= 3000U)
 	{
 		//readValues analog/Digital.
 		HAL_ADC_Stop(&hadc1);
+		HAL_Delay(5);
 		HAL_ADC_Start(&hadc1);
 		
 		
 		HAL_ADC_PollForConversion(&hadc1,100);
 		flame_a0 =  HAL_ADC_GetValue(&hadc1);
-
+		flameV = ((2.05*flame_a0)/4096.0);
+		
 		HAL_ADC_PollForConversion(&hadc1,100);
 		CO_a1 =  HAL_ADC_GetValue(&hadc1);
+		coV = ((2.05*CO_a1)/4096.0);
 		
 		HAL_ADC_PollForConversion(&hadc1,100);
 		smoke_a2 =  HAL_ADC_GetValue(&hadc1);
+		
+		smokeV = ((2.05*smoke_a2)/4096.0);
 		
 		HAL_ADC_Stop(&hadc1);
 		
@@ -1420,12 +1453,50 @@ if(heaterTime >= 30000U)
 		//Turn on counter for 30 Seconds.
 		offCountHeater = 0x01;
 	}
-if(offHeaterTime >=30000U)
+if(offHeaterTime >=3000U)
 	{
 		offCountHeater = 0x0;
 		countHeater = 0x01;	
 	}
 	
+	
+}
+
+void checkDiff()
+{
+	//Read initial data into a variable 
+	if(sensors != sensorsM)
+	{
+		//Save the latest value to memory
+	}
+}
+
+void trigger()
+{
+	//battery voltage 
+	//co sensor 
+	//flame sensor
+	//smoke sensors
+	
+	if((flameV >= 0.8) || (coV >= 0.8) )
+		{
+			redCO = 1;
+		}
+		else 
+		{
+			redCO = 0;
+		}
+		
+		if(smokeV >=0.8)
+		{
+			redSmoke =1;
+		}
+		else 
+		{
+			redSmoke = 0;
+		}
+		
+		
 	
 }
 
