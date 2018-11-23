@@ -39,13 +39,14 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l4xx_hal.h"
+
+/* USER CODE BEGIN Includes */
 #define ACC_DEV 0x50
 #define LIS3DE_CTRL_REG1             0x20U
 #define LIS3DE_CLICK_THS             0x3AU
 #define LIS3DE_TIME_LIMIT            0x3BU
 #define LIS3DE_CTRL_REG6             0x25U
 #define LIS3DE_CLICK_CFG             0x38U
-/* USER CODE BEGIN Includes */
 #define AUDIO_FILE_ADDRESS   0x08080000
 __IO int16_t                 UpdatePointer = -1;
 
@@ -249,18 +250,8 @@ int main(void)
     Error_Handler();
   }
 	
-	
-	
 	countHeater = 0x01;
-  /* USER CODE END 2 */
-//////acceloremeter
-	//HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
-	//reg1 = 20;
-	//reg1 = reg1 << 1; // 0x50
-	
-	//HAL_I2C_Mem_Read(&hi2c1,0x50, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
-	//HAL_I2C_Mem_Read(&hi2c1,ACC_DEV, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
-	//SETTING FOR I2C FOR INTERUPT THE MOTION 
+		//SETTING FOR I2C FOR INTERUPT THE MOTION 
 	reg1 = 0x77;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG1,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); // set speed 400khz
 	reg1 = 0x12U;
@@ -282,6 +273,15 @@ int main(void)
 	
 	
 	//END OF SETTING FOR I2C FOR INTERUPT THE MOTION 
+  /* USER CODE END 2 */
+//////acceloremeter
+	//HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
+	//reg1 = 20;
+	//reg1 = reg1 << 1; // 0x50
+	
+	//HAL_I2C_Mem_Read(&hi2c1,0x50, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
+	//HAL_I2C_Mem_Read(&hi2c1,ACC_DEV, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
