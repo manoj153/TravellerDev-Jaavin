@@ -39,7 +39,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l4xx_hal.h"
-
+#define ACC_DEV 0x50
+#define LIS3DE_CTRL_REG1             0x20U
+#define LIS3DE_CLICK_THS             0x3AU
+#define LIS3DE_TIME_LIMIT            0x3BU
+#define LIS3DE_CTRL_REG6             0x25U
+#define LIS3DE_CLICK_CFG             0x38U
 /* USER CODE BEGIN Includes */
 #define AUDIO_FILE_ADDRESS   0x08080000
 __IO int16_t                 UpdatePointer = -1;
@@ -107,6 +112,7 @@ _Bool redSmoke = 0x00;
 _Bool redFlame = 0x00;
 _Bool flashRED = 0x00; 
 uint8_t cntboot = 0x00;
+uint8_t readAcceloro = 0x00;
 uint32_t POWERON_1 = 0;
 uint32_t POWERON_0 = 0;
 uint32_t sensors 	=	0;
@@ -132,6 +138,7 @@ uint32_t	 SCANROOM_0 = 0x00;
 
 uint32_t	BTON_1		=	0x00;
 uint32_t	BTON_0		=	0x00;
+uint8_t reg1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -220,6 +227,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
+//	HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
+//	HAL_I2C_Mem_Read(&hi2c1,0x28U, 0x0FU,I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 1000);
 	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
 	HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
 	if(*((uint64_t *)AUDIO_FILE_ADDRESS) != 0x017EFE2446464952 ) Error_Handler();
@@ -244,7 +253,35 @@ int main(void)
 	
 	countHeater = 0x01;
   /* USER CODE END 2 */
+//////acceloremeter
+	//HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
+	//reg1 = 20;
+	//reg1 = reg1 << 1; // 0x50
+	
+	//HAL_I2C_Mem_Read(&hi2c1,0x50, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
+	//HAL_I2C_Mem_Read(&hi2c1,ACC_DEV, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
+	//SETTING FOR I2C FOR INTERUPT THE MOTION 
+	reg1 = 0x77;
+	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG1,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); // set speed 400khz
+	reg1 = 0x12U;
+	HAL_Delay(10);
+	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_THS,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); //Click threshold set
+	reg1 = 0x33U;
+	HAL_Delay(10);
+	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_TIME_LIMIT,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
+	HAL_Delay(10);
+	reg1 = 0x80U;
+	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG6,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
+	HAL_Delay(10);
+	reg1 = 0x15U;
+	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_CFG,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
+	HAL_Delay(10);
+	
 
+	
+	
+	
+	//END OF SETTING FOR I2C FOR INTERUPT THE MOTION 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
