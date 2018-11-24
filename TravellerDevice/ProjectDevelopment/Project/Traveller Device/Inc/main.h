@@ -71,8 +71,10 @@
 #define C0_HTR_GPIO_Port GPIOE
 #define INT_2_Pin GPIO_PIN_10
 #define INT_2_GPIO_Port GPIOE
+#define INT_2_EXTI_IRQn EXTI15_10_IRQn
 #define INT_1_Pin GPIO_PIN_11
 #define INT_1_GPIO_Port GPIOE
+#define INT_1_EXTI_IRQn EXTI15_10_IRQn
 #define G7_Pin GPIO_PIN_12
 #define G7_GPIO_Port GPIOE
 #define B7_Pin GPIO_PIN_13

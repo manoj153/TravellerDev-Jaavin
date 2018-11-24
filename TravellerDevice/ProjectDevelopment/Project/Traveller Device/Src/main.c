@@ -112,6 +112,7 @@ _Bool redCO = 0x00;
 _Bool redSmoke = 0x00;
 _Bool redFlame = 0x00;
 _Bool flashRED = 0x00; 
+_Bool motionFlag = 0x00;
 uint8_t cntboot = 0x00;
 uint8_t readAcceloro = 0x00;
 uint32_t POWERON_1 = 0;
@@ -254,7 +255,7 @@ int main(void)
 		//SETTING FOR I2C FOR INTERUPT THE MOTION 
 	reg1 = 0x77;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG1,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); // set speed 400khz
-	reg1 = 0x12U;
+	reg1 = 0x5AU;//0x12U;
 	HAL_Delay(10);
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_THS,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); //Click threshold set
 	reg1 = 0x33U;
@@ -274,13 +275,6 @@ int main(void)
 	
 	//END OF SETTING FOR I2C FOR INTERUPT THE MOTION 
   /* USER CODE END 2 */
-//////acceloremeter
-	//HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
-	//reg1 = 20;
-	//reg1 = reg1 << 1; // 0x50
-	
-	//HAL_I2C_Mem_Read(&hi2c1,0x50, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
-	//HAL_I2C_Mem_Read(&hi2c1,ACC_DEV, (reg1),I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 5000);
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -398,19 +392,31 @@ int main(void)
 			if((sensors >> 6) & 1)
 			{
 				HAL_GPIO_WritePin(B5_GPIO_Port, B5_Pin, GPIO_PIN_SET);
+				
 			}
 			else
 			{
 				HAL_GPIO_WritePin(B5_GPIO_Port, B5_Pin, GPIO_PIN_RESET);
 			}
 			
-			if((sensors >> 7) & 1)
+			if((sensors >> 7) & 1) // MOTION LIGHT
 			{
+				if(motionFlag)
+				{
+					HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_RESET);
+					HAL_GPIO_WritePin(R6_GPIO_Port, R6_Pin, GPIO_PIN_SET);
+				}
+				else
+				{
 				HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(R6_GPIO_Port, R6_Pin, GPIO_PIN_RESET);
+				}
+				//HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_SET);
 			}
 			else
 			{
 				HAL_GPIO_WritePin(B6_GPIO_Port, B6_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(R6_GPIO_Port, R6_Pin, GPIO_PIN_RESET);
 			}
 			
 			if((sensors >> 8) & 1)
@@ -979,6 +985,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
 }
 
 /* USER CODE BEGIN 4 */
@@ -1137,6 +1147,7 @@ if(MOVEON != 1)  //Pressed
 				if(clear_3)
 				{
 				sensors =  sensors ^ (1 << 7);
+				motionFlag = 0x0U;
 				clear_3 = 0;
 				}
 				MOVEON_1 = REFdebounce +1;	
@@ -1555,7 +1566,7 @@ void trigger()
 			redSmoke = 0;
 		}
 		
-		if(redCO || smokeV)
+		if(redCO || redSmoke || (motionFlag & ((sensors >> 7) & 1)))
 		{
 			flashRED = 0x01;
 		}
@@ -1579,8 +1590,17 @@ void trigger()
 			HAL_GPIO_WritePin(RING_R_GPIO_Port, RING_R_Pin, GPIO_PIN_RESET);
 		}
 	
+
+
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == INT_2_Pin)
+	{
+		motionFlag = 0x01U;
+	}
+}
 /* USER CODE END 4 */
 
 /**
