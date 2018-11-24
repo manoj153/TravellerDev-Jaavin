@@ -48,6 +48,8 @@
 #define LIS3DE_CTRL_REG6             0x25U
 #define LIS3DE_CLICK_CFG             0x38U
 #define AUDIO_FILE_ADDRESS   0x08080000
+
+#define TEMP_ADD (0x40<<1)
 __IO int16_t                 UpdatePointer = -1;
 
 #define AUDIO_FILE_SIZE      (180*1024)
@@ -58,6 +60,7 @@ DMA_HandleTypeDef            hSaiDma;
 uint16_t                      PlayBuff[PLAY_BUFF_SIZE];
 void readSensors();
 void trigger();
+void temp_hum();
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -141,6 +144,14 @@ uint32_t	 SCANROOM_0 = 0x00;
 uint32_t	BTON_1		=	0x00;
 uint32_t	BTON_0		=	0x00;
 uint8_t reg1;
+uint8_t temph[2] = {0U, 0U};
+
+
+uint16_t R_HUM = 0x00; 
+uint16_t R_TEMP = 0x00; 
+
+float A_HUM;
+float A_TEMP;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -268,12 +279,26 @@ int main(void)
 	reg1 = 0x15U;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_CFG,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
 	HAL_Delay(10);
-	
 
-	
-	
-	
 	//END OF SETTING FOR I2C FOR INTERUPT THE MOTION 
+	
+	//START OF READ TEMP
+	reg1 = 0xE5; // hold master signal 
+	HAL_I2C_Mem_Read(&hi2c1, TEMP_ADD, reg1,I2C_MEMADD_SIZE_8BIT, temph, 2, 1000);
+	R_HUM = (uint16_t) ((temph[0]<<8) | temph[1]);
+	A_HUM = (float)(((125.0 * R_HUM) / 65536.0) - 6.0);
+	if(A_HUM < 0)
+    A_HUM =  0;
+  else if(A_HUM > 100)
+    A_HUM = 100;
+	reg1 = 0xE0;
+	
+	HAL_I2C_Mem_Read(&hi2c1, TEMP_ADD, reg1,I2C_MEMADD_SIZE_8BIT, temph, 2, 1000);
+	R_TEMP = (uint16_t) ((temph[0]<<8) | temph[1]);
+	A_TEMP = (float)(((175.72 * R_TEMP) / 65536.0) - 46.85);
+	
+	//END OF READ TEMP
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -1514,6 +1539,7 @@ if(offHeaterTime >=3000U)
 		countHeater = 0x01;	
 	}
 	
+	temp_hum();
 	
 }
 
@@ -1600,6 +1626,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	{
 		motionFlag = 0x01U;
 	}
+}
+
+void temp_hum()
+{
+		reg1 = 0xE5; // hold master signal 
+	HAL_I2C_Mem_Read(&hi2c1, TEMP_ADD, reg1,I2C_MEMADD_SIZE_8BIT, temph, 2, 1000);
+	R_HUM = (uint16_t) ((temph[0]<<8) | temph[1]);
+	A_HUM = (float)(((125.0 * R_HUM) / 65536.0) - 6.0);
+	if(A_HUM < 0)
+    A_HUM =  0;
+  else if(A_HUM > 100)
+    A_HUM = 100;
+	
+	reg1 = 0xE0;
+	
+	HAL_I2C_Mem_Read(&hi2c1, TEMP_ADD, reg1,I2C_MEMADD_SIZE_8BIT, temph, 2, 1000);
+	R_TEMP = (uint16_t) ((temph[0]<<8) | temph[1]);
+	A_TEMP = (float)(((175.72 * R_TEMP) / 65536.0) - 46.85);
 }
 /* USER CODE END 4 */
 
