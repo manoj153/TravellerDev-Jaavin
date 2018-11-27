@@ -47,13 +47,14 @@
 #define LIS3DE_TIME_LIMIT            0x3BU
 #define LIS3DE_CTRL_REG6             0x25U
 #define LIS3DE_CLICK_CFG             0x38U
-#define AUDIO_FILE_ADDRESS   0x08080000
+#define AUDIO_FILE_ADDRESS   				0x08098CF0//0x08080000 // 0x08098CF0
 
+// MOTION : 0x08080000 SMOKE : 0x08098CF0 GAS : 0x080B19E0
 #define TEMP_ADD (0x40<<1)
 __IO int16_t                 UpdatePointer = -1;
 
-#define AUDIO_FILE_SIZE      (180*1024)
-#define PLAY_HEADER          0x2C
+#define AUDIO_FILE_SIZE      (100*1024)
+#define PLAY_HEADER          	0x2c//0x2C
 #define PLAY_BUFF_SIZE       4096
 DMA_HandleTypeDef            hSaiDma;
 
@@ -116,6 +117,7 @@ _Bool redSmoke = 0x00;
 _Bool redFlame = 0x00;
 _Bool flashRED = 0x00; 
 _Bool motionFlag = 0x00;
+_Bool firsttimeonly = 0x01;
 uint8_t cntboot = 0x00;
 uint8_t readAcceloro = 0x00;
 uint32_t POWERON_1 = 0;
@@ -242,31 +244,31 @@ int main(void)
   /* USER CODE BEGIN 2 */
 //	HAL_I2C_Master_Transmit(&hi2c1, 0xFF, i2c_Data, 4, 5000);
 //	HAL_I2C_Mem_Read(&hi2c1,0x28U, 0x0FU,I2C_MEMADD_SIZE_8BIT, &readAcceloro, 1, 1000);
-	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim16, TIM_CHANNEL_1); //ring light intestiy 
 	HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
-	if(*((uint64_t *)AUDIO_FILE_ADDRESS) != 0x017EFE2446464952 ) Error_Handler();
-	Playback_Init();
+	//if(*((uint64_t *)AUDIO_FILE_ADDRESS) != 0x017EFE2446464952 ) Error_Handler();
+	Playback_Init(); // volume and frequency of audio intitilistation 
 	
-	for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
-  {
-    PlayBuff[i]=*((__IO uint16_t *)(AUDIO_FILE_ADDRESS + PLAY_HEADER + i));
-  }
-    
-  /* Start the playback */
-  if(0 != audio_drv->Play(AUDIO_I2C_ADDRESS, NULL, 0))
-  {
-    Error_Handler();
-  }
-  if(HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE))
-  {
-    Error_Handler();
-  }
+//	for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
+//  {
+//    PlayBuff[i]=*((__IO uint16_t *)(AUDIO_FILE_ADDRESS + PLAY_HEADER + i));
+//  }
+//    
+//  /* Start the playback */
+//  if(0 != audio_drv->Play(AUDIO_I2C_ADDRESS, NULL, 0))
+//  {
+//    Error_Handler();
+//  }
+ // if(HAL_OK != HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE)) // should not start here as no audio in the buffer yet 
+  //{
+  //  Error_Handler();
+  //}
 	
 	countHeater = 0x01;
-		//SETTING FOR I2C FOR INTERUPT THE MOTION 
+	//SETTING FOR I2C FOR INTERUPT THE MOTION 
 	reg1 = 0x77;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG1,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); // set speed 400khz
-	reg1 = 0x5AU;//0x12U;
+	reg1 = 0x69U;//0x12U;
 	HAL_Delay(10);
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_THS,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000); //Click threshold set
 	reg1 = 0x33U;
@@ -276,7 +278,7 @@ int main(void)
 	reg1 = 0x80U;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CTRL_REG6,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
 	HAL_Delay(10);
-	reg1 = 0x15U;
+	reg1 = 0x5U;
 	HAL_I2C_Mem_Write(&hi2c1,ACC_DEV, LIS3DE_CLICK_CFG,I2C_MEMADD_SIZE_8BIT, (uint8_t*)&reg1, 1, 1000);
 	HAL_Delay(10);
 
@@ -298,7 +300,7 @@ int main(void)
 	A_TEMP = (float)(((175.72 * R_TEMP) / 65536.0) - 46.85);
 	
 	//END OF READ TEMP
-
+	motionFlag = 0x0U;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -306,32 +308,129 @@ int main(void)
   while (1)
   {
 		
-		while(UpdatePointer==-1){
-		
+	
+		//int position = UpdatePointer;
+    //UpdatePointer = -1;		
+    // Playback when trigger motion 
+		if(motionFlag & ((sensors >> 7) & 1))
+		{
+			// copy first part for only one time 
+			if(firsttimeonly)
+		{
+			for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
+			{
+				PlayBuff[i]=*((__IO uint16_t *)(0x08080000 + PLAY_HEADER + i));
+			}
+				firsttimeonly = 0x00;
+				HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE); // try this as each time need to say which chunk of memory buffer to read the data frm
+				HAL_SAI_DMAResume(&hsai_BlockA1); // this is because there in trigger() is pause the playback basically means mute the amp z
 		}
-    
-    int position = UpdatePointer;
+		
+		int position = UpdatePointer;
     UpdatePointer = -1;
-
-    /* Upate the first or the second part of the buffer */
-    for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
+			
+		for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
     {
-      PlayBuff[i+position] = *(uint16_t *)(AUDIO_FILE_ADDRESS + PlaybackPosition);
+      PlayBuff[i+position] = *(uint16_t *)(0x08080000 + PlaybackPosition);
       PlaybackPosition+=2; 
     }
-
-    /* check the end of the file */
-    if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
+		
+		if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
     {
       PlaybackPosition = PLAY_HEADER;
     }
-    
-    if(UpdatePointer != -1)
+						
+		}
+		
+		// smoke code start
+		
+				if(redSmoke & ((sensors >> 4) & 1))
+		{
+			// copy first part for only one time 
+			if(firsttimeonly)
+		{
+			for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
+			{
+				PlayBuff[i]=*((__IO uint16_t *)(0x08098CF0 + PLAY_HEADER + i));
+			}
+				firsttimeonly = 0x00;
+				HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE); // try this as each time need to say which chunk of memory buffer to read the data frm
+				HAL_SAI_DMAResume(&hsai_BlockA1); // this is because there in trigger() is pause the playback basically means mute the amp z
+		}
+		
+		int position = UpdatePointer;
+    UpdatePointer = -1;
+			
+		for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
     {
-      /* Buffer update time is too long compare to the data transfer time */
-      Error_Handler();
+      PlayBuff[i+position] = *(uint16_t *)(0x08098CF0 + PlaybackPosition);
+      PlaybackPosition+=2; 
     }
 		
+		if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
+    {
+      PlaybackPosition = PLAY_HEADER;
+    }
+						
+		}
+		//smoke code end
+		
+		//gas code start
+		if(redCO & ((sensors >> 5) & 1))
+		{
+			// copy first part for only one time 
+			if(firsttimeonly)
+		{
+			for(int i=0; i < PLAY_BUFF_SIZE; i+=2)
+			{
+				PlayBuff[i]=*((__IO uint16_t *)(0x080B19E0 + PLAY_HEADER + i));
+			}
+				firsttimeonly = 0x00;
+				HAL_SAI_Transmit_DMA(&hsai_BlockA1, (uint8_t *)PlayBuff, PLAY_BUFF_SIZE); // try this as each time need to say which chunk of memory buffer to read the data frm
+				HAL_SAI_DMAResume(&hsai_BlockA1); // this is because there in trigger() is pause the playback basically means mute the amp z
+		}
+		
+		int position = UpdatePointer;
+    UpdatePointer = -1;
+			
+		for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
+    {
+      PlayBuff[i+position] = *(uint16_t *)(0x080B19E0 + PlaybackPosition);
+      PlaybackPosition+=2; 
+    }
+		
+		if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
+    {
+      PlaybackPosition = PLAY_HEADER;
+    }
+						
+		}
+		// gas code end
+		
+		//while(UpdatePointer==-1){
+		
+		//}
+    
+
+    /* Upate the first or the second part of the buffer */
+//    for(int i = 0; i < PLAY_BUFF_SIZE/2; i++)
+//    {
+//      PlayBuff[i+position] = *(uint16_t *)(AUDIO_FILE_ADDRESS + PlaybackPosition);
+//      PlaybackPosition+=2; 
+//    }
+
+//    /* check the end of the file */
+//    if((PlaybackPosition+PLAY_BUFF_SIZE/2) > AUDIO_FILE_SIZE)
+//    {
+//      PlaybackPosition = PLAY_HEADER;
+//    }
+//    
+//    if(UpdatePointer != -1)
+//    {
+//      /* Buffer update time is too long compare to the data transfer time */
+//      Error_Handler();
+//    }
+//		
 		//Playback_Init();
 		if(PWSW) // PWR ON [TurnON001]
 		{
@@ -551,10 +650,10 @@ void SystemClock_Config(void)
   PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
   PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
   PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
+  PeriphClkInit.PLLSAI1.PLLSAI1N = 48;
   PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV17;
   PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
+  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV8;
   PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_SAI1CLK|RCC_PLLSAI1_ADC1CLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -735,7 +834,7 @@ static void MX_SAI1_Init(void)
   hsai_BlockA1.Init.FIFOThreshold = SAI_FIFOTHRESHOLD_1QF;
   hsai_BlockA1.Init.AudioFrequency = SAI_AUDIO_FREQUENCY_22K;
   hsai_BlockA1.Init.SynchroExt = SAI_SYNCEXT_DISABLE;
-  hsai_BlockA1.Init.MonoStereoMode = SAI_STEREOMODE;
+  hsai_BlockA1.Init.MonoStereoMode = SAI_MONOMODE;//SAI_STEREOMODE;
   hsai_BlockA1.Init.CompandingMode = SAI_NOCOMPANDING;
   hsai_BlockA1.Init.TriState = SAI_OUTPUT_NOTRELEASED;
   hsai_BlockA1.FrameInit.FrameLength = 32;
@@ -1172,12 +1271,12 @@ if(MOVEON != 1)  //Pressed
 				if(clear_3)
 				{
 				sensors =  sensors ^ (1 << 7);
-				motionFlag = 0x0U;
+				motionFlag = 0x0;
 				clear_3 = 0;
 				}
 				MOVEON_1 = REFdebounce +1;	
 			}
-			
+			motionFlag = 0x0;
 		}
 	}
 		else
@@ -1595,10 +1694,18 @@ void trigger()
 		if(redCO || redSmoke || (motionFlag & ((sensors >> 7) & 1)))
 		{
 			flashRED = 0x01;
+			if(0 != audio_drv->Play(AUDIO_I2C_ADDRESS, NULL, 0))
+				{
+					Error_Handler();
+				}
 		}
 		else
 		{
-			flashRED = 0x00;
+			flashRED = 0x00;	
+			firsttimeonly = 0x01;
+			HAL_SAI_DMAPause(&hsai_BlockA1); // dma pause don't send music also the buffer
+			//might need to eplicit pause the audio chip 
+			
 		}
 		
 		if((flashredTime > 1000U) & (flashRED) )

@@ -181,7 +181,7 @@ uint32_t cs43l22_Init(uint16_t DeviceAddr, uint16_t OutputDevice, uint8_t Volume
   if(OutputDevice != OUTPUT_DEVICE_HEADPHONE)
   {
     /* Set the Speaker Mono mode */  
-    counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_PLAYBACK_CTL2, 0xC0);//0x06
+    counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_PLAYBACK_CTL2, 0xE0);//0x06 //c0
     
     /* Set the Speaker attenuation level */  
     counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_SPEAKER_A_VOL, 0x00);
@@ -202,7 +202,7 @@ uint32_t cs43l22_Init(uint16_t DeviceAddr, uint16_t OutputDevice, uint8_t Volume
   /* Disable the limiter attack level */
   counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_LIMIT_CTL1, 0x00);
   /* Adjust Bass and Treble levels */
-  counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_TONE_CTL, 0x0F);
+  counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_TONE_CTL, 0x18);//0x0F
   /* Adjust PCM volume level */
   counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_PCMA_VOL, 0x0A);
   counter += CODEC_IO_Write(DeviceAddr, CS43L22_REG_PCMB_VOL, 0x0A);
